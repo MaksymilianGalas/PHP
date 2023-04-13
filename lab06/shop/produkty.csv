@@ -1,4 +1,4 @@
-id;nazwa;ilosc;cena
-1;Kawa;10;12.99
-2;Herbata;20;8.99
-3;Ciastka;15;5.49
+id;nazwa;cena
+1;Kawa;12.99
+2;Herbata;8.99
+3;Ciastka;5.49
