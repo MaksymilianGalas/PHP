@@ -1,11 +1,6 @@
 <?php
 require_once('function.php');
-
-if(isset($koszyk)) {
-    foreach($koszyk as $key => $produkt) {
-        // rest of the code for the loop
-    }
-}
+$_SESSION['koszyk'];
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -24,7 +19,6 @@ if (isset($_GET['wyczysc'])) {
     wyczysc();
 
 }
-
 $produkty = array();
 if (($handle = fopen('produkty.csv', 'r')) !== false) {
     $header = fgetcsv($handle, 0, ';');
@@ -51,8 +45,8 @@ if (($handle = fopen('produkty.csv', 'r')) !== false) {
 <table>
     <thead>
     <tr>
-        <th>Nazwa</th>
-        <th>Ilość</th>
+        <th>Nazwa   </th>
+
         <th>Cena</th>
         <th></th>
     </tr>
@@ -61,7 +55,7 @@ if (($handle = fopen('produkty.csv', 'r')) !== false) {
     <?php foreach ($produkty as $produkt): ?>
         <tr>
             <td><?php echo $produkt['nazwa']; ?></td>
-            <td><?php echo $produkt['ilosc']; ?></td>
+
             <td><?php echo $produkt['cena']; ?> zł</td>
             <td><a href="?dodaj=<?php echo $produkt['id']; ?>">Do koszyka</a></td>
         </tr>
