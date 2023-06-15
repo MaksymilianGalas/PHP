@@ -7,15 +7,14 @@ $username = "s27479";
 $password = "Mak.Gala";
 $dbname = "s27479";
 
-// Create a new database connection
+$paramValue = isset($_GET['param']) ? $_GET['param'] : '';
+
 $conn = new mysqli($servername, $username, $password, $dbname);
 
-// Check if the connection was successful
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Function to sanitize user input
 function sanitizeInput($input)
 {
     global $conn;
@@ -24,7 +23,6 @@ function sanitizeInput($input)
     return $input;
 }
 
-// Fetch balance from the database
 $login = sanitizeInput($_SESSION['login']);
 $selectQuery = "SELECT money FROM uzytkownicy WHERE login = '$login'";
 
@@ -37,32 +35,29 @@ if ($result->num_rows > 0) {
     $money = 0;
 }
 
-// Check if the button was clicked and enough time has passed since the last click
 $currentTime = time();
 $lastClickTime = isset($_COOKIE['last_click_time']) ? (int)$_COOKIE['last_click_time'] : 0;
 $elapsedTime = $currentTime - $lastClickTime;
 $allowClick = $elapsedTime >= 30;
 
-// Increase balance if the button was clicked and enough time has passed
 if (isset($_POST['add_balance']) && $allowClick) {
     $money += 50;
     setcookie('last_click_time', $currentTime, time() + 30);
 
-    // Update balance in the database
     $updateQuery = "UPDATE uzytkownicy SET money = '$money' WHERE login = '$login'";
     if ($conn->query($updateQuery) === FALSE) {
         echo "Error updating balance: " . $conn->error;
     }
 }
 
-// Logout functionality
+
 if (isset($_POST['logout'])) {
     session_destroy();
     header("Location: admin.php");
     exit();
 }
 
-// Close the database connection
+
 $conn->close();
 ?>
 
@@ -124,7 +119,7 @@ $conn->close();
     </style>
 </head>
 <body>
-<form method="POST" action="<?php echo $_SERVER['PHP_SELF']; ?>">
+<form method="POST" action="<?php echo $_SERVER['PHP_SELF']; ?>?param=value">
     <button class="logout" type="submit" name="logout">Logout</button>
     <div class="balance">Your balance: <span id="balance"><?php echo $money; ?></span></div>
     <button class="add-balance" type="submit" name="add_balance" <?php if (!$allowClick) echo 'disabled'; ?>>
@@ -138,13 +133,12 @@ $conn->close();
     <a href="kasyno2.php">
         <img src="image2.jpg" alt="Image 2">
     </a>
-    <a href="https://example.net">
+    <a href="kasyno3.php">
         <img src="image3.jpg" alt="Image 3">
     </a>
 </div>
 
 <script>
-    // Update balance on page load
     document.addEventListener("DOMContentLoaded", function() {
         document.getElementById("balance").textContent = "<?php echo $money; ?>";
     });

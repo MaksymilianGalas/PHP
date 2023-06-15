@@ -6,7 +6,6 @@ $username = "s27479";
 $password = "Mak.Gala";
 $dbname = "s27479";
 
-// Create a new database connection
 $conn = new mysqli($servername, $username, $password, $dbname);
 
 if (!isset($_SESSION['balance'])) {
@@ -24,23 +23,18 @@ if (isset($_POST['back'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Process the form submission
     $color = $_POST['color'];
     $bet = $_POST['bet'];
 
-    // Check if the color is valid
     if ($color !== "black" && $color !== "red") {
         $outcome = "Invalid color! Please choose either 'black' or 'red'.";
     } else {
-        // Check if the user has enough money to place the bet
         if ($bet > $money) {
             header("Location: kasyno1.php");
         } else {
-            // Spin the wheel and generate a random color
             $colors = ["black", "red"];
             $spin = $colors[array_rand($colors)];
 
-            // Random number generation
             $randomNumber = 0;
             if ($spin == 'red') {
                 $randomNumber = getRandomNumberRed() + 360;
@@ -48,7 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $randomNumber = getRandomNumberBlack() + 360;
             }
 
-            // Determine the outcome
             if ($color == $spin) {
                 $money += $bet * 2;
                 $outcome = "Congratulations! You won $bet! Your new balance is $money.";
@@ -57,10 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $outcome = "Sorry, you lost $bet. Your new balance is $money.";
             }
 
-            // Update the balance in the session
             $_SESSION['balance'] = $money;
 
-            // Update the balance in the database
             $login = sanitizeInput($_SESSION['login']);
             $updateQuery = "UPDATE uzytkownicy SET money = '$money' WHERE login = '$login'";
             if ($conn->query($updateQuery) === FALSE) {
@@ -104,7 +95,7 @@ function getRandomNumberBlack()
     $range2 = rand(150, 210);
     $range3 = rand(270, 330);
 
-    $randomNumber = rand(1, 4);
+    $randomNumber = rand(1, 3);
 
     switch ($randomNumber) {
         case 1:

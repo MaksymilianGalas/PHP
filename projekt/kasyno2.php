@@ -1,13 +1,76 @@
 <?php
 session_start();
 
+class CoinFlipGame {
+    private $conn;
+    private $money;
+    private $outcome;
+
+    public function __construct($conn, $money) {
+        $this->conn = $conn;
+        $this->money = $money;
+        $this->outcome = '';
+    }
+
+    public function playGame($bet) {
+        if ($bet > $this->money) {
+            $this->outcome = "Insufficient balance. Please place a lower bet.";
+        } else {
+            $result = $this->flipCoin();
+
+            if ($result == "win") {
+                $this->money += $bet * 1.5;
+                $this->outcome = "Congratulations! You won $bet! Your new balance is $this->money.";
+            } else {
+                $this->money -= $bet;
+                $this->outcome = "Sorry, you lost $bet. Your new balance is $this->money.";
+            }
+
+            $this->updateBalance();
+        }
+    }
+
+    private function flipCoin() {
+        $coin = rand(0, 1);
+
+        return $coin == 1 ? "win" : "lose";
+    }
+
+    private function updateBalance() {
+        $login = $this->sanitizeInput($_SESSION['login']);
+        $money = $this->sanitizeInput($this->money);
+
+        $updateQuery = "UPDATE uzytkownicy SET money = '$money' WHERE login = '$login'";
+        if ($this->conn->query($updateQuery) === FALSE) {
+            echo "Error updating balance: " . $this->conn->error;
+        }
+
+        $_SESSION['balance'] = $this->money;
+    }
+
+    private function sanitizeInput($input) {
+        return mysqli_real_escape_string($this->conn, $input);
+    }
+
+    public function getOutcome() {
+        return $this->outcome;
+    }
+
+    public function getMoney() {
+        return $this->money;
+    }
+}
+
 $servername = "szuflandia.pjwstk.edu.pl";
 $username = "s27479";
 $password = "Mak.Gala";
 $dbname = "s27479";
 
-
 $conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
 
 if (!isset($_SESSION['balance'])) {
     session_destroy();
@@ -16,249 +79,91 @@ if (!isset($_SESSION['balance'])) {
 }
 
 $money = $_SESSION['balance'];
-$outcome = "";
+$outcome = '';
 
-if (isset($_POST['back'])) {
-    header("Location: welcome.php");
-    exit();
-}
+$game = new CoinFlipGame($conn, $money);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Process the form submission
-    $action = $_POST['action'];
-
-    if ($action === "start") {
-        startBlackjack();
-    } elseif ($action === "hit") {
-        hitCard();
-    } elseif ($action === "stand") {
-        endGame();
-    }
-}
-
-function startBlackjack()
-{
-    global $conn, $money, $outcome;
     $bet = $_POST['bet'];
-
-    // Check if the user has enough money to place the bet
-    if ($bet > $money) {
-        header("Location: blackjack.php");
-    } else {
-        // Update the balance in the session
-        $money -= $bet;
-        $_SESSION['balance'] = $money;
-
-        // Update the balance in the database
-        $login = sanitizeInput($_SESSION['login']);
-        $updateQuery = "UPDATE uzytkownicy SET money = '$money' WHERE login = '$login'";
-        if ($conn->query($updateQuery) === FALSE) {
-            echo "Error updating balance: " . $conn->error;
-        }
-
-        // Deal two initial cards to the player
-        $playerCards = dealInitialCards();
-        $playerScore = calculateScore($playerCards);
-
-        // Deal two initial cards to the dealer
-        $dealerCards = dealInitialCards();
-        $dealerScore = calculateScore($dealerCards);
-
-        // Check for blackjack
-        if ($playerScore == 21) {
-            $money += $bet * 2.5;
-            $outcome = "Blackjack! You won $bet. Your new balance is $money.";
-            endGame();
-        } else {
-            $_SESSION['player_cards'] = $playerCards;
-            $_SESSION['dealer_cards'] = $dealerCards;
-            $_SESSION['bet'] = $bet;
-            $_SESSION['player_score'] = $playerScore;
-            $_SESSION['dealer_score'] = $dealerScore;
-        }
-    }
+    $game->playGame($bet);
+    $outcome = $game->getOutcome();
+    $money = $game->getMoney();
 }
 
-function hitCard()
-{
-    $playerCards = $_SESSION['player_cards'];
-    $playerScore = $_SESSION['player_score'];
-
-    // Deal one additional card to the player
-    $newCard = dealCard();
-    $playerCards[] = $newCard;
-    $playerScore = calculateScore($playerCards);
-
-    if ($playerScore > 21) {
-        endGame();
-    } else {
-        $_SESSION['player_cards'] = $playerCards;
-        $_SESSION['player_score'] = $playerScore;
-    }
-}
-
-function endGame()
-{
-    $servername = "szuflandia.pjwstk.edu.pl";
-    $username = "s27479";
-    $password = "Mak.Gala";
-    $dbname = "s27479";
-    $conn = new mysqli($servername, $username, $password, $dbname);
-    global $money, $outcome;
-    $playerCards = $_SESSION['player_cards'];
-    $dealerCards = $_SESSION['dealer_cards'];
-    $playerScore = $_SESSION['player_score'];
-    $dealerScore = $_SESSION['dealer_score'];
-    $bet = $_SESSION['bet'];
-
-    // Dealer's turn
-    while ($dealerScore < 17) {
-        $newCard = dealCard();
-        $dealerCards[] = $newCard;
-        $dealerScore = calculateScore($dealerCards);
-    }
-
-    // Determine the outcome
-    if ($dealerScore > 21 || $playerScore > $dealerScore) {
-        $money += $bet * 2;
-        $outcome = "Congratulations! You won $bet. Your new balance is $money.";
-    } elseif ($playerScore < $dealerScore) {
-        $outcome = "Sorry, you lost $bet. Your new balance is $money.";
-    } else {
-        $money += $bet;
-        $outcome = "It's a tie. Your new balance is $money.";
-    }
-
-    // Update the balance in the session
-    $_SESSION['balance'] = $money;
-
-    // Update the balance in the database
-    $login = sanitizeInput($_SESSION['login']);
-    $updateQuery = "UPDATE uzytkownicy SET money = '$money' WHERE login = '$login'";
-    if ($conn->query($updateQuery) === FALSE) {
-        echo "Error updating balance: " . $conn->error;
-    }
-
-    // Clear session data
-    unset($_SESSION['player_cards']);
-    unset($_SESSION['dealer_cards']);
-    unset($_SESSION['bet']);
-    unset($_SESSION['player_score']);
-    unset($_SESSION['dealer_score']);
-}
-
-function sanitizeInput($input)
-{
-    global $conn;
-    $input = trim($input);
-    $input = mysqli_real_escape_string($conn, $input);
-    return $input;
-}
-
-function dealInitialCards()
-{
-    $cards = [];
-    $cards[] = dealCard();
-    $cards[] = dealCard();
-    return $cards;
-}
-
-function dealCard()
-{
-    $cardTypes = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-    $cardSuits = ['clubs', 'diamonds', 'hearts', 'spades'];
-    $randomType = array_rand($cardTypes);
-    $randomSuit = array_rand($cardSuits);
-    $card = $cardTypes[$randomType] . '_' . $cardSuits[$randomSuit] . '.png';
-    return $card;
-}
-
-function calculateScore($cards)
-{
-    $score = 0;
-    $aceCount = 0;
-
-    foreach ($cards as $card) {
-        $cardType = substr($card, 0, strpos($card, '_'));
-
-        if ($cardType == 'A') {
-            $score += 11;
-            $aceCount++;
-        } elseif (in_array($cardType, ['K', 'Q', 'J'])) {
-            $score += 10;
-        } else {
-            $score += intval($cardType);
-        }
-    }
-
-    while ($score > 21 && $aceCount > 0) {
-        $score -= 10;
-        $aceCount--;
-    }
-
-    return $score;
-}
+$conn->close();
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="">
 <head>
-    <title>Blackjack Game</title>
+    <title>Coin Flip Game</title>
     <style>
-        .cards {
-            display: flex;
-            flex-wrap: wrap;
+        body {
+            font-family: Arial, sans-serif;
         }
 
-        .card {
+        h1 {
+            text-align: center;
+        }
+
+        p {
+            text-align: center;
+        }
+
+        form {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input[type="number"] {
             width: 100px;
-            height: 150px;
-            margin: 5px;
         }
 
-        .balance {
-            margin-bottom: 10px;
+        input[type="submit"] {
+            margin-top: 10px;
+            padding: 6px 12px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            cursor: pointer;
         }
 
-        .hidden {
-            display: none;
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+
+        .return-button {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .return-button button {
+            padding: 6px 12px;
+            background-color: #ccc;
+            color: #000;
+            border: none;
+            cursor: pointer;
         }
     </style>
-    <script>
-        window.addEventListener('DOMContentLoaded', function () {
-            var outcomeElement = document.getElementById('outcome');
-            outcomeElement.classList.add('hidden');
-
-            setTimeout(function () {
-                outcomeElement.classList.remove('hidden');
-                var balanceElement = document.getElementById('balance');
-                balanceElement.classList.add('hidden');
-            }, 4000);
-        });
-    </script>
 </head>
 <body>
-<h1>Blackjack Game</h1>
-<p id="balance" class="balance">Your current balance is <?php echo $money; ?></p>
-<div class="cards">
-    <?php foreach ($_SESSION['player_cards'] as $card) : ?>
-        <img class="card" src="cards/<?php echo $card; ?>" alt="Card">
-    <?php endforeach; ?>
-</div>
-<p>Your score: <?php echo $_SESSION['player_score']; ?></p>
-<div class="cards">
-    <?php foreach ($_SESSION['dealer_cards'] as $card) : ?>
-        <img class="card" src="cards/<?php echo $card; ?>" alt="Card">
-    <?php endforeach; ?>
-</div>
-<p>Dealer's score: <?php echo $_SESSION['dealer_score']; ?></p>
-<p id="outcome" class="hidden"><?php echo $outcome; ?></p>
+<h1>Coin Flip Game</h1>
+<p>Your current balance is <?php echo $money; ?></p>
 <form method="POST" action="<?php echo $_SERVER['PHP_SELF']; ?>">
-    <input type="submit" name="hit" value="Hit">
-    <input type="submit" name="stand" value="Stand">
+    <label for="bet">Enter your bet:</label>
+    <label>
+        <input type="number" name="bet" min="1" required>
+    </label><br>
+    <input type="submit" value="Place Bet">
 </form>
-<form method="POST" action="welcome.php">
-    <input type="submit" name="back" value="Back">
-</form>
+<p><?php echo $outcome; ?></p>
+
+<div class="return-button">
+    <button onclick="window.location.href='welcome.php'">Return to Welcome Page</button>
+</div>
+
 </body>
 </html>
